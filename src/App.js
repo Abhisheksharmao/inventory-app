@@ -1,106 +1,82 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
 import {
-  collection,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc
+  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
 } from 'firebase/firestore';
 import {
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
+  signInWithEmailAndPassword, signOut, onAuthStateChanged
 } from 'firebase/auth';
 import './App.css';
 
 function App() {
   const [items, setItems] = useState([]);
-  const [newItem, setNewItem] = useState({ name: '', code: '', quantity: '', unit: '' });
+  const [newItem, setNewItem] = useState({ name: '', code: '', quantity: '', unit: '', low: '' });
   const [editingIndex, setEditing] = useState(null);
   const [editedQty, setEditedQty] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [lowStock, setLowStock] = useState([]);
   const [user, setUser] = useState(null);
   const [authForm, setAuthForm] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(true);
   const [showNotice, setShowNotice] = useState(false);
 
   const invCol = collection(db, 'inventory');
 
-  // Listen for auth state
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, u => setUser(u));
+    const unsub = onAuthStateChanged(auth, u => {
+      setUser(u);
+      if (!u) {
+        setItems([]);
+        setLowStock([]);
+        setLoading(false);
+      }
+    });
     return () => unsub();
   }, []);
 
-  // Real‑time inventory listener
   useEffect(() => {
-    if (!user) {
-      setItems([]);
-      setLowStock([]);
-      return;
-    }
+    if (!user) return;
+    setLoading(true);
     const unsub = onSnapshot(invCol, snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setItems(data);
-      setLowStock(data.filter(i => i.quantity < 5));
+      setLowStock(data.filter(i => i.quantity < i.low));
+      setLoading(false);
     });
     return () => unsub();
   }, [user]);
 
-  // Auth form handlers
   const handleAuthChange = e =>
     setAuthForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
-  const handleLogin = async e => {
-    e.preventDefault();
-    const { email, password } = authForm;
-    if (!email.trim() || !password.trim()) {
-      alert('Please enter both email and password.');
-      return;
-    }
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (err) {
-      alert(err.message);
-    }
-  };
+  const signInUser = () =>
+    signInWithEmailAndPassword(auth, authForm.email, authForm.password).catch(alert);
 
   const logoutUser = () => signOut(auth);
 
-  // Add or update item
   const addItem = async e => {
     e.preventDefault();
-    const { name, code, quantity, unit } = newItem;
-    if (!name || !code || !quantity || !unit) {
-      alert('Fill all fields');
-      return;
-    }
+    const { name, code, quantity, unit, low } = newItem;
+    if (!name || !code || !quantity || !unit) return alert('Fill all fields');
     const qty = parseInt(quantity, 10);
-    if (isNaN(qty) || qty <= 0) {
-      alert('Invalid qty');
-      return;
-    }
+    const lowVal = parseInt(low, 10);
+    if (isNaN(qty) || isNaN(lowVal)) return alert('Invalid quantity or low stock value');
     const existing = items.find(i => i.code === code);
     if (existing) {
       const newQty = existing.quantity + qty;
-      setItems(it =>
-        it.map(i => (i.code === code ? { ...i, quantity: newQty } : i))
-      );
       await updateDoc(doc(db, 'inventory', existing.id), { quantity: newQty });
     } else {
-      const ref = await addDoc(invCol, { name, code, quantity: qty, unit });
-      setItems(it => [...it, { id: ref.id, name, code, quantity: qty, unit }]);
+      await addDoc(invCol, { name, code, quantity: qty, unit, low: lowVal });
     }
-    setNewItem({ name: '', code: '', quantity: '', unit: '' });
+    setNewItem({ name: '', code: '', quantity: '', unit: '', low: '' });
   };
 
-  const clearFields = () => setNewItem({ name: '', code: '', quantity: '', unit: '' });
+  const clearFields = () => {
+    setNewItem({ name: '', code: '', quantity: '', unit: '', low: '' });
+  };
 
   const deleteItem = async id => {
     if (!window.confirm('Delete this item?')) return;
-    setItems(it => it.filter(i => i.id !== id));
     await deleteDoc(doc(db, 'inventory', id));
   };
 
@@ -111,202 +87,106 @@ function App() {
 
   const saveEdit = async id => {
     const qty = parseInt(editedQty, 10);
-    if (isNaN(qty) || qty < 0) {
-      alert('Invalid quantity');
-      return;
-    }
+    if (isNaN(qty)) return alert('Invalid quantity');
     setEditing(null);
-    setItems(it =>
-      it.map(i => (i.id === id ? { ...i, quantity: qty } : i))
-    );
     await updateDoc(doc(db, 'inventory', id), { quantity: qty });
   };
 
   const exportCSV = () => {
-    const headers = ['Name', 'Code', 'Quantity', 'Unit'];
-    const rows = items.map(i => [i.name, i.code, i.quantity, i.unit]);
-    let csv = 'data:text/csv;charset=utf-8,' + headers.join(',') + '\n';
-    csv += rows.map(r => r.join(',')).join('\n');
+    const headers = ['Name', 'Code', 'Quantity', 'Unit', 'Low Stock Limit'];
+    const rows = items.map(i => [i.name, i.code, i.quantity, i.unit, i.low]);
+    let csv = 'data:text/csv;charset=utf-8,' + headers.join(',') + '\n'
+      + rows.map(r => r.join(',')).join('\n');
     const link = document.createElement('a');
     link.href = encodeURI(csv);
     link.download = 'inventory.csv';
     link.click();
   };
 
-  const filtered = items.filter(
-    i =>
-      i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      i.code.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = items.filter(i =>
+    i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    i.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="container">
-      <h2>Inventory Management</h2>
+      <h2>Mexmon Technologies</h2>
 
       {!user ? (
-        <div className="auth-form">
-          <form className="auth-box" onSubmit={handleLogin}>
-            <h3>Login</h3>
-            <input
-              name="email"
-              type="email"
-              placeholder="Email"
-              value={authForm.email}
-              onChange={handleAuthChange}
-              required style={{
-                padding: '10px',
-                marginBottom: '15px',
-                fontSize: '16px',
-                borderRadius: '5px',
-                border: '1px solid #ccc',
-              }}
-            />
-            <input
-              name="password"
-              type="password"
-              placeholder="Password"
-              value={authForm.password}
-              onChange={handleAuthChange}
-              required style={{
-                padding: '10px',
-                marginBottom: '20px',
-                fontSize: '16px',
-                borderRadius: '5px',
-                border: '1px solid #ccc',
-              }}
-            />
-            <button type="submit"  style={{
-                padding: '10px 20px',
-                backgroundColor: '#4CAF50',
-                color: '#fff',
-                fontSize: '16px',
-                borderRadius: '5px',
-                border: 'none',
-                cursor: 'pointer',
-              }} >Login</button>
-          </form>
+        <div className="login-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '300px', margin: 'auto' }}>
+          <input name="email" placeholder="Email" onChange={handleAuthChange} />
+          <input name="password" type="password" placeholder="Password" onChange={handleAuthChange} />
+          <button onClick={signInUser}>Login</button>
         </div>
       ) : (
         <>
           <div className="top-bar">
-            <button onClick={logoutUser}>Logout</button>
-            <button onClick={exportCSV}>Export CSV</button>
+            <button onClick={logoutUser}>🔓 LOG OUT</button>
+            <button onClick={exportCSV}>⬇️ EXPORT DATA</button>
           </div>
 
           {lowStock.length > 0 && (
-            <div
-              className="notification-icon"
-              onClick={() => setShowNotice(v => !v)}
-            >
+            <div className="notification-icon" onClick={() => setShowNotice(!showNotice)}>
               🔔
             </div>
           )}
 
-          <div
-            className={`notification-panel ${
-              showNotice ? 'open' : ''
-            }`}
-            hidden={lowStock.length === 0}
-          >
+          <div className={`notification-panel ${showNotice ? 'open' : ''}`} hidden={lowStock.length === 0}>
             <strong>Low Stock:</strong>
             {lowStock.map(i => (
-              <div key={i.id}>
-                {i.name} ({i.quantity} {i.unit})
-              </div>
+              <div key={i.id}>{i.name} ({i.quantity} {i.unit})</div>
             ))}
           </div>
 
           <form className="form" onSubmit={addItem}>
-            <input
-              placeholder="Name"
-              value={newItem.name}
-              onChange={e =>
-                setNewItem(n => ({ ...n, name: e.target.value }))
-              }
-            />
-            <input
-              placeholder="Code"
-              value={newItem.code}
-              onChange={e =>
-                setNewItem(n => ({ ...n, code: e.target.value }))
-              }
-            />
-            <input
-              placeholder="Quantity"
-              value={newItem.quantity}
-              onChange={e =>
-                setNewItem(n => ({ ...n, quantity: e.target.value }))
-              }
-            />
-            <input
-              placeholder="Unit"
-              value={newItem.unit}
-              onChange={e =>
-                setNewItem(n => ({ ...n, unit: e.target.value }))
-              }
-            />
-            <button type="submit">Add Item</button>
-            <button type="button" onClick={clearFields}>
-              Clear
-            </button>
+            <input placeholder="Name" value={newItem.name} onChange={e => setNewItem(n => ({ ...n, name: e.target.value }))} />
+            <input placeholder="Code" value={newItem.code} onChange={e => setNewItem(n => ({ ...n, code: e.target.value }))} />
+            <input placeholder="Quantity" value={newItem.quantity} onChange={e => setNewItem(n => ({ ...n, quantity: e.target.value }))} />
+            <input placeholder="Unit" value={newItem.unit} onChange={e => setNewItem(n => ({ ...n, unit: e.target.value }))} />
+            <input placeholder="Low Stock Limit" value={newItem.low} onChange={e => setNewItem(n => ({ ...n, low: e.target.value }))} />
+            <button type="submit">Add</button>
+            <button type="button" onClick={clearFields}>Clear</button>
           </form>
 
-          <input
-            className="search"
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
+          <input className="search" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
 
-          <div className="table-responsive">
+          {loading ? <p>Loading...</p> : (
             <table>
               <thead>
                 <tr>
                   <th>Name</th>
                   <th>Code</th>
-                  <th>Quantity</th>
+                  <th>Qty</th>
                   <th>Unit</th>
+                  <th>Low</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((i, idx) => (
-                  <tr key={i.id} className={i.quantity < 5 ? 'low-stock' : ''}>
+                  <tr key={i.id}>
                     <td>{i.name}</td>
                     <td>{i.code}</td>
                     <td>
                       {editingIndex === idx ? (
-                        <input
-                          value={editedQty}
-                          onChange={e => setEditedQty(e.target.value)}
-                          style={{ width: '60px' }}
-                        />
-                      ) : (
-                        i.quantity
-                      )}
+                        <input value={editedQty} onChange={e => setEditedQty(e.target.value)} style={{ width: '50px' }} />
+                      ) : i.quantity}
                     </td>
                     <td>{i.unit}</td>
+                    <td>{i.low}</td>
                     <td>
-                      <div className="action-buttons">
-                        <button onClick={() => deleteItem(i.id)}>
-                          Delete
-                        </button>
-                        {editingIndex === idx ? (
-                          <button onClick={() => saveEdit(i.id)}>
-                            Save
-                          </button>
-                        ) : (
-                          <button onClick={() => startEdit(idx, i.quantity)}>
-                            Edit
-                          </button>
-                        )}
-                      </div>
+                      <button style={{padding:"5PX",background:"red" , color:"white",border:"0px", borderRadius:"7px"}} onClick={() => deleteItem(i.id)}>❌ DELETE</button>
+                      {editingIndex === idx ? (
+                        <button style={{padding:"5PX" , marginLeft:"10PX", borderRadius:"7px",border:"0px", background:"#189ff3"}} onClick={() => saveEdit(i.id)}>💾 SAVE</button>
+                      ) : (
+                        <button style={{padding:"5PX", marginLeft:"10PX", background:"green" ,border:"0px", color:"white" , borderRadius:"7px"}} onClick={() => startEdit(idx, i.quantity)}>✏️ EDIT</button>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          )}
         </>
       )}
     </div>
