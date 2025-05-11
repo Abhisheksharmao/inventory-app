@@ -114,6 +114,7 @@ function App() {
 
       {!user ? (
         <div className="login-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px',maxHeight:"600px", maxWidth: '300px', margin: 'auto' }}>
+          
           <h1>welcome,</h1>
           <p>login to continue</p>
           <input name="email" placeholder="Email..." onChange={handleAuthChange} />

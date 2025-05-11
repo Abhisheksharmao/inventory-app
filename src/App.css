@@ -75,7 +75,8 @@ table {
   width: 100%;
   border-collapse: collapse;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  background: white;
+  background: rgba(255, 255, 255, 0.626);
+  color: black;
 }
 
 th, td {
@@ -86,7 +87,7 @@ th, td {
 
 th {
   background: #189ff3;
-  color: white;
+  color: rgb(255, 255, 255);
 }
 
 .notification-icon {
@@ -114,7 +115,7 @@ th {
   display: block;
 }
 .login-container {
-  background: rgba(255, 255, 255, 0.1); /* Transparent white background */
+  background: rgba(255, 255, 255, 0.095); /* Transparent white background */
   padding: 2rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -122,6 +123,8 @@ th {
   color: white; /* Make text inside white */
   backdrop-filter: blur(8px); /* Optional: frosted glass effect */
   -webkit-backdrop-filter: blur(8px);
+  box-shadow: #ffffff3f 20px 20px;
+  
 }
 
 .login-container input {
@@ -174,7 +177,7 @@ button.logout {
   td {
     padding: 0.5rem;
     border: none;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #eeeeee88;
     position: relative;
   }
 
