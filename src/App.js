@@ -110,15 +110,15 @@ function App() {
 
   return (
     <div className="container">
-      <h2>Mexmon Technologies</h2>
+      <h2 style={{color:"white"}}>Mexmon Technologies</h2>
 
       {!user ? (
         <div className="login-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px',maxHeight:"600px", maxWidth: '300px', margin: 'auto' }}>
           <h1>welcome,</h1>
           <p>login to continue</p>
-          <input name="email" placeholder="Email" onChange={handleAuthChange} />
-          <input name="password" type="password" placeholder="Password" onChange={handleAuthChange} />
-          <button onClick={signInUser}>Login</button>
+          <input name="email" placeholder="Email..." onChange={handleAuthChange} />
+          <input name="password" type="password" placeholder="Password..." onChange={handleAuthChange} />
+          <button className='loginbtn' onClick={signInUser}>Login</button>
         </div>
       ) : (
         <>
@@ -164,31 +164,29 @@ function App() {
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {filtered.map((i, idx) => (
-                  <tr key={i.id}>
-                    <td>{i.name}</td>
-                    <td>{i.code}</td>
-                    <td>
-                      {editingIndex === idx ? (
-                        <input value={editedQty} onChange={e => setEditedQty(e.target.value)} style={{ width: '50px' }} />
-                      ) : i.quantity}
-                    </td>
-                    <td>{i.unit}</td>
-                    <td>{i.low}</td>
-                    <td data-label="Actions">
-  <div className="action-buttons">
-    <button onClick={() => deleteItem(i.id)} className="delete">❌ DELETE</button>
-    {editingIndex === idx ? (
-      <button onClick={() => saveEdit(i.id)} className="save">💾 SAVE</button>
-    ) : (
-      <button onClick={() => startEdit(idx, i.quantity)} className="edit">✏️ EDIT</button>
-    )}
-  </div>
-</td>
-                  </tr>
-                ))}
-              </tbody>
+             <tbody>
+  {filtered.map((i, idx) => (
+    <tr key={i.id}>
+      <td data-label="Name">{i.name}</td>
+      <td data-label="Code">{i.code}</td>
+      <td data-label="Qty">
+        {editingIndex === idx ? (
+          <input value={editedQty} onChange={e => setEditedQty(e.target.value)} style={{ width: '60px' }} />
+        ) : i.quantity}
+      </td>
+      <td data-label="Unit">{i.unit}</td>
+      <td data-label="Low">{i.low}</td>
+      <td data-label="Actions">
+        <button onClick={() => deleteItem(i.id)} className="delete">❌ DELETE</button>
+        {editingIndex === idx ? (
+          <button onClick={() => saveEdit(i.id)} className="save">💾 SAVE</button>
+        ) : (
+          <button onClick={() => startEdit(idx, i.quantity)} className="edit">✏️ EDIT</button>
+        )}
+      </td>
+    </tr>
+  ))}
+</tbody>
             </table>
           )}
         </>
