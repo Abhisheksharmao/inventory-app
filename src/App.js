@@ -113,7 +113,9 @@ function App() {
       <h2>Mexmon Technologies</h2>
 
       {!user ? (
-        <div className="login-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '300px', margin: 'auto' }}>
+        <div className="login-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px',maxHeight:"600px", maxWidth: '300px', margin: 'auto' }}>
+          <h1>welcome,</h1>
+          <p>login to continue</p>
           <input name="email" placeholder="Email" onChange={handleAuthChange} />
           <input name="password" type="password" placeholder="Password" onChange={handleAuthChange} />
           <button onClick={signInUser}>Login</button>
@@ -174,14 +176,16 @@ function App() {
                     </td>
                     <td>{i.unit}</td>
                     <td>{i.low}</td>
-                    <td>
-                      <button style={{padding:"5PX",background:"red" , color:"white",border:"0px", borderRadius:"7px"}} onClick={() => deleteItem(i.id)}>❌ DELETE</button>
-                      {editingIndex === idx ? (
-                        <button style={{padding:"5PX" , marginLeft:"10PX", borderRadius:"7px",border:"0px", background:"#189ff3"}} onClick={() => saveEdit(i.id)}>💾 SAVE</button>
-                      ) : (
-                        <button style={{padding:"5PX", marginLeft:"10PX", background:"green" ,border:"0px", color:"white" , borderRadius:"7px"}} onClick={() => startEdit(idx, i.quantity)}>✏️ EDIT</button>
-                      )}
-                    </td>
+                    <td data-label="Actions">
+  <div className="action-buttons">
+    <button onClick={() => deleteItem(i.id)} className="delete">❌ DELETE</button>
+    {editingIndex === idx ? (
+      <button onClick={() => saveEdit(i.id)} className="save">💾 SAVE</button>
+    ) : (
+      <button onClick={() => startEdit(idx, i.quantity)} className="edit">✏️ EDIT</button>
+    )}
+  </div>
+</td>
                   </tr>
                 ))}
               </tbody>
